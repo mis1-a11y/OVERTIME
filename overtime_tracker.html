@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Overtime Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161920;
+    --bg3: #1d2027;
+    --bg4: #252830;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0f1f3;
+    --text2: #9ba0ad;
+    --text3: #5c6270;
+    --accent: #4f8ef7;
+    --accent-dim: rgba(79,142,247,0.12);
+    --green: #3ecf8e;
+    --green-dim: rgba(62,207,142,0.12);
+    --red: #f46b6b;
+    --red-dim: rgba(244,107,107,0.12);
+    --amber: #f5a623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  :root.light {
+    --bg: #f4f5f7;
+    --bg2: #ffffff;
+    --bg3: #eef0f3;
+    --bg4: #e4e6ea;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #111318;
+    --text2: #5a6070;
+    --text3: #9ba0ad;
+    --accent: #2b6ef5;
+    --accent-dim: rgba(43,110,245,0.10);
+    --green: #1eaa6b;
+    --green-dim: rgba(30,170,107,0.10);
+    --red: #d94040;
+    --red-dim: rgba(217,64,64,0.10);
+    --amber: #c07a00;
+    --amber-dim: rgba(192,122,0,0.10);
+    --shadow: 0 4px 24px rgba(0,0,0,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+
+  /* ── Layout ── */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 0; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; }
+
+  /* ── Sidebar ── */
+  .logo { padding: 28px 20px 24px; border-bottom: 1px solid var(--border); }
+  .logo-title { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; color: var(--text); }
+  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+  .nav { padding: 16px 12px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 400; margin-bottom: 2px; transition: all 0.15s; border: 1px solid transparent; }
+  .nav-item svg { flex-shrink: 0; opacity: 0.6; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(79,142,247,0.2); }
+  .nav-item.active svg { opacity: 1; }
+  .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+  .shift-pill { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+  .shift-pill-label { font-size: 10px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .shift-pill-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+  .shift-pill-row span:first-child { color: var(--text2); }
+  .shift-pill-row span:last-child { color: var(--text); font-family: var(--mono); }
+
+  /* ── Page Header ── */
+  .page-header { padding: 28px 32px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-bottom: 20px; }
+  .page-title { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; }
+  .page-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .page-content { padding: 28px 32px; }
+
+  /* ── Metrics ── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .metric { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; }
+  .metric-label { font-size: 11px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+  .metric-value { font-size: 26px; font-weight: 600; letter-spacing: -0.8px; color: var(--text); font-family: var(--mono); }
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.green { color: var(--green); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.amber { color: var(--amber); }
+
+  /* ── Card ── */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; overflow: hidden; }
+  .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .card-body { padding: 20px; }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+  input[type=text], input[type=number], input[type=date], input[type=time], select, textarea {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 12px;
+    color: var(--text); font-size: 13px; font-family: var(--sans); width: 100%; outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  select option { background: var(--bg3); }
+  .form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+  /* ── Buttons ── */
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; font-family: var(--sans); transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #6ba3f9; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+  .btn-danger { background: transparent; color: var(--red); border: 1px solid rgba(244,107,107,0.3); padding: 6px 10px; font-size: 12px; }
+  .btn-danger:hover { background: var(--red-dim); }
+  .btn-green { background: transparent; color: var(--green); border: 1px solid rgba(62,207,142,0.3); }
+  .btn-green:hover { background: var(--green-dim); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { text-align: left; padding: 10px 14px; font-size: 10px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+  .empty-row td { text-align: center; padding: 40px; color: var(--text3); font-size: 13px; }
+
+  /* ── Badges ── */
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: var(--mono); }
+  .badge-ot { background: var(--red-dim); color: var(--red); border: 1px solid rgba(244,107,107,0.25); }
+  .badge-ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.25); }
+  .badge-lt { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(79,142,247,0.25); }
+  .badge-absent { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.25); }
+  .badge-sun { background: rgba(245,166,35,0.1); color: var(--amber); border: 1px solid rgba(245,166,35,0.2); font-size: 10px; padding: 2px 7px; }
+
+  /* ── OT Preview ── */
+  .ot-preview { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-top: 16px; display: none; }
+  .ot-preview.show { display: block; }
+  .ot-preview-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+  .ot-preview-row + .ot-preview-row { margin-top: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
+  .ot-hi { font-weight: 600; font-size: 18px; font-family: var(--mono); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── Toast ── */
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+  .toast { background: var(--bg4); border: 1px solid var(--border2); border-radius: var(--radius); padding: 11px 16px; font-size: 13px; color: var(--text); box-shadow: var(--shadow); transform: translateY(10px); opacity: 0; transition: all 0.25s; max-width: 320px; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(62,207,142,0.4); }
+  .toast.error { border-color: rgba(244,107,107,0.4); }
+
+  /* ── Pages ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Inline mono values ── */
+  .mono { font-family: var(--mono); }
+  .ot-val { color: var(--red); font-family: var(--mono); font-weight: 500; }
+  .lt-val { color: var(--accent); font-family: var(--mono); font-weight: 500; }
+  .ok-val { color: var(--text3); font-family: var(--mono); }
+
+  /* ── Filter bar ── */
+  .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { width: auto; font-size: 12px; padding: 7px 10px; }
+
+  /* ── Report summary cards ── */
+  .report-emp-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 10px; }
+  .rec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .rec-name { font-size: 14px; font-weight: 500; }
+  .rec-id { font-size: 11px; font-family: var(--mono); color: var(--text3); margin-top: 2px; }
+  .rec-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+  .rec-stat { text-align: center; }
+  .rec-stat-v { font-size: 16px; font-weight: 600; font-family: var(--mono); }
+  .rec-stat-l { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+
+  /* ── Settings section labels ── */
+  .section-label { font-size: 11px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Theme Toggle ── */
+  .theme-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border2); background: var(--bg3); cursor: pointer; transition: all 0.2s; color: var(--text2); flex-shrink: 0; }
+  .theme-toggle:hover { background: var(--bg4); color: var(--text); }
+  .theme-toggle svg { width: 16px; height: 16px; }
+
+  /* ── Photo Upload ── */
+  .photo-upload-area {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--bg3);
+    position: relative;
+  }
+  .photo-upload-area:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .photo-upload-area.has-photo { border-color: var(--green); border-style: solid; }
+  .photo-upload-area input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .photo-upload-label { font-size: 12px; color: var(--text3); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .photo-upload-label svg { opacity: 0.5; }
+  .photo-preview-wrap { display: none; position: relative; margin-top: 8px; }
+  .photo-preview-wrap.show { display: block; }
+  .photo-preview-img { width: 100%; max-height: 140px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--border); }
+  .photo-remove-btn { position: absolute; top: 6px; right: 6px; background: var(--bg4); border: 1px solid var(--border2); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--red); font-size: 14px; line-height: 1; }
+  .photo-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; vertical-align: middle; }
+  .photo-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; }
+  .photo-modal-overlay.open { display: flex; }
+  .photo-modal-img { max-width: 90vw; max-height: 85vh; border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+  .photo-modal-close { position: absolute; top: 20px; right: 24px; color: #fff; font-size: 28px; cursor: pointer; line-height: 1; opacity: 0.8; }
+  .photo-modal-close:hover { opacity: 1; }
+
+  @media (max-width: 700px) {
+    .sidebar { width: 60px; }
+    .logo-title, .logo-sub, .nav-item span, .sidebar-footer { display: none; }
+    .nav-item { justify-content: center; padding: 12px; }
+    .page-header { padding: 20px 16px 16px; }
+    .page-content { padding: 16px; }
+    .form-grid, .form-grid-2 { grid-template-columns: 1fr; }
+    .rec-stats { grid-template-columns: repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">OT Tracker</div>
+      <div class="logo-sub">v2.0 · Employee OT</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="goPage('settings')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Shift settings</span>
+      </div>
+      <div class="nav-item" onclick="goPage('employees')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Employees</span>
+      </div>
+      <div class="nav-item" onclick="goPage('log')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Daily log</span>
+      </div>
+      <div class="nav-item" onclick="goPage('report')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span>Report</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="shift-pill">
+        <div class="shift-pill-label">Current shifts</div>
+        <div class="shift-pill-row"><span>Mon–Sat</span><span id="sb-wd">9h</span></div>
+        <div class="shift-pill-row"><span>Sunday</span><span id="sb-sun">4h</span></div>
+      </div>
+      <div style="margin-top:10px;display:flex;justify-content:center">
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle light/dark theme">
+          <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Settings -->
+    <div id="page-settings" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Shift settings</div>
+          <div class="page-sub">Configure working hours for Mon–Sat and Sunday separately</div>
+        </div>
+      </div>
+      <div class="page-content">
+        <div class="card">
+          <div class="card-body">
+            <div class="section-label">Mon–Sat (weekday) shift</div>
+            <div class="form-grid">
+              <div class="field"><label>Shift start time</label><input type="time" id="wd-start" value="09:00"></div>
+              <div class="field"><label>Shift end time</label><input type="time" id="wd-end" value="18:00"></div>
+              <div class="field"><label>Standard hours / day</label><input type="number" id="wd-hrs" value="9" min="1" max="24" step="0.5"></div>
+              <div class="field"><label>Break / Lunch (mins)</label><input type="number" id="wd-break" value="0" min="0" max="120" step="5" placeholder="0"></div>
+            </div>
+            <div class="divider"></div>
+            <div class="section-label">Sunday shift</div>
+            <div class="form-grid">
+              <div class="field"><label>Shift start time</label><input type="time" id="sun-start" value="09:00"></div>
+              <div class="field"><label>Shift end time</label><input type="time" id="sun-end" value="13:00"></div>
+              <div class="field"><label>Standard hours / day</label><input type="number" id="sun-hrs" value="4" min="0" max="24" step="0.5"></div>
+              <div class="field"><label>Break / Lunch (mins)</label><input type="number" id="sun-break" value="0" min="0" max="120" step="5" placeholder="0"></div>
+            </div>
+            <div style="margin-top:14px;font-size:12px;color:var(--text3);padding:10px 14px;background:var(--bg3);border-radius:var(--radius);border-left:2px solid var(--accent)">
+              Break time is automatically deducted from worked hours. OT = Worked hours (after break deduction) − Standard hours. Half day = 50% of standard hours.
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveSettings()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Save settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Employees -->
+    <div id="page-employees" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Employees</div>
+          <div class="page-sub">Manage employee master list</div>
+        </div>
+      </div>
+      <div class="page-content">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Add new employee</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label>Full name</label><input type="text" id="e-name" placeholder="Ramesh Kumar"></div>
+              <div class="field"><label>Employee ID</label><input type="text" id="e-id" placeholder="EMP001"></div>
+              <div class="field"><label>Department</label><input type="text" id="e-dept" placeholder="Production"></div>
+              <div class="field"><label>Designation</label><input type="text" id="e-desig" placeholder="Operator"></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="addEmployee()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add employee
+              </button>
+              <button class="btn btn-ghost" onclick="clearEmpForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Employee list</span>
+            <span id="emp-count" style="font-size:12px;color:var(--text3);font-family:var(--mono)">0 employees</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>ID</th><th>Department</th><th>Designation</th><th></th></tr></thead>
+              <tbody id="emp-tbody"><tr class="empty-row"><td colspan="5">No employees added yet.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Log -->
+    <div id="page-log" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Daily log</div>
+          <div class="page-sub">Record daily attendance and working hours employee-wise</div>
+        </div>
+      </div>
+      <div class="page-content">
+
+        <div class="metrics" id="log-metrics">
+          <div class="metric"><div class="metric-label">Employees</div><div class="metric-value accent" id="m-emp">0</div></div>
+          <div class="metric"><div class="metric-label">Today's entries</div><div class="metric-value" id="m-today">0</div></div>
+          <div class="metric"><div class="metric-label">Total OT hours</div><div class="metric-value red" id="m-ot">0.00h</div></div>
+          <div class="metric"><div class="metric-label">OT employees</div><div class="metric-value amber" id="m-otemp">0</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Add attendance entry</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label>Date</label><input type="date" id="l-date"></div>
+              <div class="field"><label>Employee</label>
+                <select id="l-emp"><option value="">— select —</option></select>
+              </div>
+              <div class="field"><label>Status</label>
+                <select id="l-status" onchange="onStatusChange()">
+                  <option value="present">Present</option>
+                  <option value="halfday">Half day</option>
+                  <option value="absent">Absent</option>
+                </select>
+              </div>
+            </div>
+            <div id="time-fields" style="margin-top:14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <!-- Check-in -->
+                <div>
+                  <div class="field" style="margin-bottom:10px"><label>Check-in time</label><input type="time" id="l-in" onchange="previewOT()"></div>
+                  <label style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px">
+                    In-time photo <span style="color:var(--text3);font-size:10px;text-transform:none;font-family:var(--sans);letter-spacing:0">(optional)</span>
+                  </label>
+                  <div class="photo-upload-area" id="photo-in-area">
+                    <input type="file" id="l-photo-in" accept="image/*" onchange="onPhotoSelect(event,'in')">
+                    <div class="photo-upload-label" id="photo-in-label">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      <span>Upload in-time photo</span>
+                      <span style="font-size:10px">JPG, PNG — max 5MB</span>
+                    </div>
+                    <div class="photo-preview-wrap" id="photo-in-preview">
+                      <img id="photo-in-img" class="photo-preview-img" src="" alt="In-time preview">
+                      <div class="photo-remove-btn" onclick="removePhoto(event,'in')" title="Remove">×</div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Check-out -->
+                <div>
+                  <div class="field" style="margin-bottom:10px"><label>Check-out time</label><input type="time" id="l-out" onchange="previewOT()"></div>
+                  <label style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px">
+                    Out-time photo <span style="color:var(--text3);font-size:10px;text-transform:none;font-family:var(--sans);letter-spacing:0">(optional)</span>
+                  </label>
+                  <div class="photo-upload-area" id="photo-out-area">
+                    <input type="file" id="l-photo-out" accept="image/*" onchange="onPhotoSelect(event,'out')">
+                    <div class="photo-upload-label" id="photo-out-label">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      <span>Upload out-time photo</span>
+                      <span style="font-size:10px">JPG, PNG — max 5MB</span>
+                    </div>
+                    <div class="photo-preview-wrap" id="photo-out-preview">
+                      <img id="photo-out-img" class="photo-preview-img" src="" alt="Out-time preview">
+                      <div class="photo-remove-btn" onclick="removePhoto(event,'out')" title="Remove">×</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field" style="margin-top:14px"><label>Remarks</label><input type="text" id="l-remark" placeholder="Optional"></div>
+            </div>
+            <div class="ot-preview" id="ot-preview">
+              <div class="ot-preview-row">
+                <span style="color:var(--text2)">Day type</span>
+                <span id="pv-daytype" class="mono" style="font-size:12px"></span>
+              </div>
+              <div class="ot-preview-row">
+                <span style="color:var(--text2)">Standard hours</span>
+                <span id="pv-std" class="mono" style="font-size:12px"></span>
+              </div>
+              <div class="ot-preview-row">
+                <span style="color:var(--text2)">Hours worked</span>
+                <span id="pv-worked" class="mono" style="font-size:12px"></span>
+              </div>
+              <div class="ot-preview-row">
+                <span style="color:var(--text2);font-weight:500">Overtime hours</span>
+                <span id="pv-ot" class="ot-hi"></span>
+              </div>
+              <div class="ot-preview-row" id="pv-lt-row">
+                <span style="color:var(--text2);font-weight:500">Less time</span>
+                <span id="pv-lt" class="ot-hi" style="color:var(--accent)"></span>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="saveLog()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save entry
+              </button>
+              <button class="btn btn-ghost" onclick="clearLogForm()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Attendance entries</span>
+            <div class="filter-bar">
+              <input type="date" id="f-date" onchange="renderLog()" placeholder="Filter date">
+              <select id="f-emp" onchange="renderLog()"><option value="">All employees</option></select>
+              <button class="btn btn-ghost btn-sm" onclick="clearLogFilters()">Clear filter</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Date</th><th>Day</th><th>Employee</th><th>ID</th><th>In</th><th>Out</th><th>Worked</th><th>Std hrs</th><th>OT hrs</th><th>Less time</th><th>Status</th><th>In Photo</th><th>Out Photo</th><th></th></tr></thead>
+              <tbody id="log-tbody"><tr class="empty-row"><td colspan="14">No entries yet. Add attendance above.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div id="page-report" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Overtime report</div>
+          <div class="page-sub">Employee-wise overtime summary with export</div>
+        </div>
+        <button class="btn btn-green" onclick="exportXLSX()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export .xlsx
+        </button>
+      </div>
+      <div class="page-content">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Filter</span></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="field"><label>From date</label><input type="date" id="r-from"></div>
+              <div class="field"><label>To date</label><input type="date" id="r-to"></div>
+              <div class="field"><label>Employee</label>
+                <select id="r-emp"><option value="">All employees</option></select>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" onclick="renderReport()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+                Generate report
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="report-out"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- Photo lightbox modal -->
+<div class="photo-modal-overlay" id="photo-modal" onclick="closePhotoModal()">
+  <span class="photo-modal-close" onclick="closePhotoModal()">×</span>
+  <img class="photo-modal-img" id="photo-modal-img" src="" alt="Photo proof">
+</div>
+
+<script>
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const SK_EMP = 'ot_emps_v3', SK_LOG = 'ot_logs_v3', SK_CFG = 'ot_cfg_v3';
+let emps = [], logs = [], cfg = {wdStart:'09:00',wdEnd:'18:00',wdHrs:9,wdBreak:0,sunStart:'09:00',sunEnd:'13:00',sunHrs:4,sunBreak:0};
+// ── Photo functions ──
+let selectedPhotoIn = null;
+let selectedPhotoOut = null;
+
+function ls_get(k){ return null; }
+function ls_set(k,v){}
+
+function onPhotoSelect(event, type){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 5 * 1024 * 1024){ toast('Photo too large. Max 5MB.','error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    if(type==='in'){
+      selectedPhotoIn = file;
+      document.getElementById('photo-in-img').src = e.target.result;
+      document.getElementById('photo-in-preview').classList.add('show');
+      document.getElementById('photo-in-label').style.display = 'none';
+      document.getElementById('photo-in-area').classList.add('has-photo');
+    } else {
+      selectedPhotoOut = file;
+      document.getElementById('photo-out-img').src = e.target.result;
+      document.getElementById('photo-out-preview').classList.add('show');
+      document.getElementById('photo-out-label').style.display = 'none';
+      document.getElementById('photo-out-area').classList.add('has-photo');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto(event, type){
+  event.stopPropagation();
+  if(type==='in'){
+    selectedPhotoIn = null;
+    document.getElementById('l-photo-in').value = '';
+    document.getElementById('photo-in-img').src = '';
+    document.getElementById('photo-in-preview').classList.remove('show');
+    document.getElementById('photo-in-label').style.display = '';
+    document.getElementById('photo-in-area').classList.remove('has-photo');
+  } else {
+    selectedPhotoOut = null;
+    document.getElementById('l-photo-out').value = '';
+    document.getElementById('photo-out-img').src = '';
+    document.getElementById('photo-out-preview').classList.remove('show');
+    document.getElementById('photo-out-label').style.display = '';
+    document.getElementById('photo-out-area').classList.remove('has-photo');
+  }
+}
+
+function openPhotoModal(url){
+  document.getElementById('photo-modal-img').src = url;
+  document.getElementById('photo-modal').classList.add('open');
+}
+
+function closePhotoModal(){
+  document.getElementById('photo-modal').classList.remove('open');
+  document.getElementById('photo-modal-img').src = '';
+}
+
+async function init(){
+
+  document.getElementById('l-date').value = today();
+
+  // Load settings from Firestore
+  try{
+    const cfgSnap = await fb.getDoc(fb.doc(db,"settings","shiftConfig"));
+    if(cfgSnap.exists()){
+      cfg = {...cfg, ...cfgSnap.data()};
+    }
+  }catch(err){ console.warn("Could not load settings:", err); }
+  applySettings();
+
+  // Employees — live sync
+  fb.onSnapshot(
+    fb.collection(db,"employees"),
+    (snapshot)=>{
+      emps=[];
+      snapshot.forEach(doc=>{ emps.push(doc.data()); });
+      renderEmps();
+      populateSelects();
+      updateMetrics();
+    },
+    (err)=>{ console.error("employees snapshot error",err); toast("Failed to sync employees","error"); }
+  );
+
+  // Logs — live sync
+  fb.onSnapshot(
+    fb.collection(db,"logs"),
+    (snapshot)=>{
+      logs=[];
+      snapshot.forEach(doc=>{ logs.push({firestoreId:doc.id,...doc.data()}); });
+      renderLog();
+      updateMetrics();
+      renderReport();
+    },
+    (err)=>{ console.error("logs snapshot error",err); toast("Failed to sync logs","error"); }
+  );
+}
+
+function today(){return new Date().toISOString().slice(0,10);}
+
+function goPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  const idx={settings:0,employees:1,log:2,report:3}[p];
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  if(p==='log'){populateSelects();renderLog();updateMetrics();}
+  if(p==='report'){populateSelects();renderReport();}
+  if(p==='employees'){renderEmps();}
+}
+
+function applySettings(){
+  document.getElementById('wd-start').value=cfg.wdStart;
+  document.getElementById('wd-end').value=cfg.wdEnd;
+  document.getElementById('wd-hrs').value=cfg.wdHrs;
+  document.getElementById('wd-break').value=cfg.wdBreak||0;
+  document.getElementById('sun-start').value=cfg.sunStart;
+  document.getElementById('sun-end').value=cfg.sunEnd;
+  document.getElementById('sun-hrs').value=cfg.sunHrs;
+  document.getElementById('sun-break').value=cfg.sunBreak||0;
+  document.getElementById('sb-wd').textContent=fmtH(cfg.wdHrs);
+  document.getElementById('sb-sun').textContent=fmtH(cfg.sunHrs);
+}
+
+async function saveSettings(){
+  cfg.wdStart=document.getElementById('wd-start').value;
+  cfg.wdEnd=document.getElementById('wd-end').value;
+  cfg.wdHrs=parseFloat(document.getElementById('wd-hrs').value)||9;
+  cfg.wdBreak=parseInt(document.getElementById('wd-break').value)||0;
+  cfg.sunStart=document.getElementById('sun-start').value;
+  cfg.sunEnd=document.getElementById('sun-end').value;
+  cfg.sunHrs=parseFloat(document.getElementById('sun-hrs').value)||4;
+  cfg.sunBreak=parseInt(document.getElementById('sun-break').value)||0;
+  try{
+    await fb.setDoc(fb.doc(db,"settings","shiftConfig"), cfg);
+    applySettings();
+    toast('Shift settings saved successfully.','success');
+  }catch(err){
+    console.error(err);
+    toast('Settings save failed.','error');
+  }
+}
+
+function timeToMins(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
+function minsToHrs(m){return Math.round(m/60*100)/100;}
+function fmtH(h){const totalMins=Math.round(h*60);const hh=Math.floor(totalMins/60);const mm=totalMins%60;return hh+':'+(mm<10?'0':'')+mm;}
+
+function calcOT(dateStr,inT,outT,status){
+  const dow=new Date(dateStr).getDay();
+  const isSun=dow===0;
+  const std=isSun?cfg.sunHrs:cfg.wdHrs;
+  const breakMins=isSun?(cfg.sunBreak||0):(cfg.wdBreak||0);
+  // Midnight crossover: if out < in, assume next day
+  let rawMins=timeToMins(outT)-timeToMins(inT);
+  if(rawMins<0)rawMins+=24*60;
+  const workedM=Math.max(0,rawMins-breakMins);
+  const worked=minsToHrs(workedM);
+  // Half day: standard is 50% of std hrs
+  const effectiveStd=(status==='halfday')?(std/2):std;
+  const diffM=workedM-Math.round(effectiveStd*60);
+  const ot=diffM>0?minsToHrs(diffM):0;
+  const lt=diffM<0?minsToHrs(-diffM):0;
+  return{worked,ot,lt,std:effectiveStd,isSun,dow};
+}
+
+function populateSelects(){
+  const opts=emps.map(e=>`<option value="${e.id}">${e.name} (${e.id})</option>`).join('');
+  ['l-emp','f-emp','r-emp'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const cur=el.value;
+    const prefix=id==='l-emp'?'<option value="">— select employee —</option>':'<option value="">All employees</option>';
+    el.innerHTML=prefix+opts;
+    if(cur)el.value=cur;
+  });
+}
+
+// ── Employees ──
+async function addEmployee(){
+
+    const n=document.getElementById('e-name').value.trim();
+    const id=document.getElementById('e-id').value.trim().toUpperCase();
+    const dept=document.getElementById('e-dept').value.trim();
+    const desig=document.getElementById('e-desig').value.trim();
+
+    if(!n || !id){
+        toast('Name and Employee ID are required.','error');
+        return;
+    }
+
+    try{
+
+        await fb.setDoc(
+            fb.doc(db,"employees",id),
+            {
+                name:n,
+                id:id,
+                dept:dept || "—",
+                desig:desig || "—"
+            }
+        );
+
+        clearEmpForm();
+
+        toast('Employee added successfully','success');
+
+    }catch(error){
+
+        console.error(error);
+
+        toast('Firebase save failed','error');
+
+    }
+
+}
+
+async function delEmployee(id){
+  const emp=emps.find(e=>e.id===id);
+  if(!emp||!confirm("Delete "+emp.name+"? Their log entries will be kept."))return;
+  try{
+    await fb.deleteDoc(fb.doc(db,"employees",id));
+    toast("Employee removed.","success");
+  }catch(err){
+    console.error(err);
+    toast("Delete failed.","error");
+  }
+}
+
+function clearEmpForm(){['e-name','e-id','e-dept','e-desig'].forEach(x=>document.getElementById(x).value='');}
+
+function renderEmps(){
+  document.getElementById('emp-count').textContent=emps.length+' employee'+(emps.length!==1?'s':'');
+  const tb=document.getElementById('emp-tbody');
+  if(!emps.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">No employees added yet.</td></tr>';return;}
+  tb.innerHTML=emps.map(e=>`<tr>
+    <td><strong style="font-weight:500">${e.name}</strong></td>
+    <td class="mono" style="color:var(--text3);font-size:12px">${e.id}</td>
+    <td>${e.dept}</td>
+    <td style="color:var(--text2)">${e.desig}</td>
+    <td><button class="btn btn-danger" onclick="delEmployee('${e.id}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+    </button></td>
+  </tr>`).join('');
+}
+
+// ── Log ──
+function onStatusChange(){
+  const s=document.getElementById('l-status').value;
+  document.getElementById('time-fields').style.display=s==='absent'?'none':'';
+  if(s==='absent')document.getElementById('ot-preview').classList.remove('show');
+  else previewOT();
+}
+
+function previewOT(){
+  const d=document.getElementById('l-date').value;
+  const inT=document.getElementById('l-in').value;
+  const outT=document.getElementById('l-out').value;
+  const status=document.getElementById('l-status').value;
+  const pv=document.getElementById('ot-preview');
+  if(!d||!inT||!outT){pv.classList.remove('show');return;}
+  const{worked,ot,lt,std,isSun,dow}=calcOT(d,inT,outT,status);
+  pv.classList.add('show');
+  document.getElementById('pv-daytype').textContent=isSun?'Sunday (special shift)':DAYS[dow]+' (Mon–Sat)'+(status==='halfday'?' · Half day':'');
+  document.getElementById('pv-std').textContent=fmtH(std);
+  document.getElementById('pv-worked').textContent=fmtH(worked);
+  const otEl=document.getElementById('pv-ot');
+  const ltEl=document.getElementById('pv-lt');
+  const ltRow=document.getElementById('pv-lt-row');
+  otEl.textContent=ot>0?'+'+fmtH(ot):'0:00 – No overtime';
+  otEl.style.color=ot>0?'var(--red)':'var(--green)';
+  if(lt>0){ltRow.style.display='flex';ltEl.textContent='-'+fmtH(lt);}
+  else{ltRow.style.display='none';}
+}
+
+document.addEventListener('change',e=>{
+  if(['l-date','l-in','l-out','l-status'].includes(e.target.id))previewOT();
+});
+
+async function saveLog_unused(){
+
+  const date=document.getElementById('l-date').value;
+  const empId=document.getElementById('l-emp').value;
+  const status=document.getElementById('l-status').value;
+  const inT=document.getElementById('l-in').value;
+  const outT=document.getElementById('l-out').value;
+  const remark=document.getElementById('l-remark').value.trim();
+
+  if(!date || !empId){
+    toast('Date and employee are required.','error');
+    return;
+  }
+
+  if(status!=='absent' && (!inT || !outT)){
+    toast('Check-in and check-out times required.','error');
+    return;
+  }
+
+  const emp=emps.find(e=>e.id===empId);
+
+  if(!emp){
+    toast('Employee not found.','error');
+    return;
+  }
+
+  const {worked,ot,lt,std,isSun,dow} =
+    status==='absent'
+    ? {
+        worked:0,
+        ot:0,
+        lt:0,
+        std:0,
+        isSun:new Date(date).getDay()===0,
+        dow:new Date(date).getDay()
+      }
+    : calcOT(date,inT,outT,status);
+
+  const entry = {
+    date,
+    empId,
+    empName:emp.name,
+    dept:emp.dept,
+    inTime:inT,
+    outTime:outT,
+    status,
+    remark,
+    worked,
+    ot,
+    lt,
+    std,
+    isSun,
+    dow,
+    ts:Date.now()
+  };
+
+  try{
+
+    // unique record per employee per date
+    const docId = `${date}_${empId}`;
+
+    await fb.setDoc(
+      fb.doc(db,"logs",docId),
+      entry
+    );
+
+    toast('Entry saved for '+emp.name,'success');
+
+    previewOT();
+
+  }catch(err){
+
+    console.error(err);
+
+    toast('Firebase save failed','error');
+
+  }
+
+}
+async function delLog(date,empId){
+  if(!confirm("Remove this log entry?"))return;
+  const docId=date+"_"+empId;
+  try{
+    await fb.deleteDoc(fb.doc(db,"logs",docId));
+    toast("Entry removed.","success");
+  }catch(err){
+    console.error(err);
+    toast("Delete failed.","error");
+  }
+}
+
+function clearLogForm(){
+  document.getElementById('l-emp').value='';
+  document.getElementById('l-in').value='';
+  document.getElementById('l-out').value='';
+  document.getElementById('l-remark').value='';
+  document.getElementById('l-status').value='present';
+  document.getElementById('time-fields').style.display='';
+  document.getElementById('ot-preview').classList.remove('show');
+  removePhoto({stopPropagation:()=>{}},'in');
+  removePhoto({stopPropagation:()=>{}},'out');
+}
+
+function clearLogFilters(){
+  document.getElementById('f-date').value='';
+  document.getElementById('f-emp').value='';
+  renderLog();
+}
+
+function renderLog(){
+  const fd=document.getElementById('f-date').value;
+  const fe=document.getElementById('f-emp').value;
+  let data=[...logs];
+  if(fd)data=data.filter(l=>l.date===fd);
+  if(fe)data=data.filter(l=>l.empId===fe);
+  data.sort((a,b)=>b.date.localeCompare(a.date)||a.empName.localeCompare(b.empName));
+  const tb=document.getElementById('log-tbody');
+  if(!data.length){tb.innerHTML='<tr class="empty-row"><td colspan="14">No entries found.</td></tr>';return;}
+  tb.innerHTML=data.map(l=>{
+    const isSun=l.isSun;
+    const dayName=DAYS[new Date(l.date).getDay()].slice(0,3);
+    const statusBadge=l.status==='absent'?'<span class="badge badge-absent">Absent</span>':l.status==='halfday'?'<span class="badge badge-absent">Half day</span>':'';
+    const inSrc = l.inPhotoB64 || l.inPhotoURL || null;
+    const outSrc = l.outPhotoB64 || l.outPhotoURL || null;
+    const inPhotoCell = inSrc
+      ? `<td><img src="${inSrc}" class="photo-thumb" onclick="openPhotoModal('${inSrc}')" title="View in-time photo" alt="in-time"></td>`
+      : `<td style="color:var(--text3);font-size:11px">—</td>`;
+    const outPhotoCell = outSrc
+      ? `<td><img src="${outSrc}" class="photo-thumb" onclick="openPhotoModal('${outSrc}')" title="View out-time photo" alt="out-time"></td>`
+      : `<td style="color:var(--text3);font-size:11px">—</td>`;
+    return`<tr>
+      <td class="mono" style="font-size:12px">${l.date}</td>
+      <td>${isSun?`<span class="badge badge-sun">Sun</span>`:dayName}${statusBadge?'&nbsp;'+statusBadge:''}</td>
+      <td><strong style="font-weight:500">${l.empName}</strong></td>
+      <td class="mono" style="color:var(--text3);font-size:12px">${l.empId}</td>
+      <td class="mono" style="font-size:12px">${l.inTime||'—'}</td>
+      <td class="mono" style="font-size:12px">${l.outTime||'—'}</td>
+      <td class="mono" style="font-size:12px">${l.status==='absent'?'—':fmtH(l.worked)}</td>
+      <td class="mono" style="font-size:12px;color:var(--text3)">${l.std?fmtH(l.std):'—'}</td>
+      <td>${l.ot>0?`<span class="ot-val">+${fmtH(l.ot)}</span>`:'<span class="ok-val">—</span>'}</td>
+      <td>${(l.lt||0)>0?`<span class="lt-val">-${fmtH(l.lt||0)}</span>`:'<span class="ok-val">—</span>'}</td>
+      <td>${l.ot>0?'<span class="badge badge-ot">OT</span>':(l.lt||0)>0?'<span class="badge badge-lt">Less</span>':'<span class="badge badge-ok">OK</span>'}</td>
+      ${inPhotoCell}
+      ${outPhotoCell}
+      <td><button class="btn btn-danger" onclick="delLog('${l.date}','${l.empId}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateMetrics(){
+  document.getElementById('m-emp').textContent=emps.length;
+  const td=today();
+  document.getElementById('m-today').textContent=logs.filter(l=>l.date===td).length;
+  const totalOT=logs.reduce((s,l)=>s+l.ot,0);
+  document.getElementById('m-ot').textContent=fmtH(totalOT);
+  const otEmps=new Set(logs.filter(l=>l.ot>0).map(l=>l.empId)).size;
+  document.getElementById('m-otemp').textContent=otEmps;
+}
+
+// ── Report ──
+function getFilteredLogs(){
+  const from=document.getElementById('r-from').value;
+  const to=document.getElementById('r-to').value;
+  const emp=document.getElementById('r-emp').value;
+  let data=[...logs];
+  if(from)data=data.filter(l=>l.date>=from);
+  if(to)data=data.filter(l=>l.date<=to);
+  if(emp)data=data.filter(l=>l.empId===emp);
+  return data;
+}
+
+function renderReport(){
+  const data=getFilteredLogs();
+  const out=document.getElementById('report-out');
+  if(!data.length){out.innerHTML='<div class="card"><div class="card-body" style="text-align:center;color:var(--text3);padding:40px">No data for selected range.</div></div>';return;}
+
+  const byEmp={};
+  data.forEach(l=>{
+    if(!byEmp[l.empId])byEmp[l.empId]={name:l.empName,id:l.empId,dept:l.dept||'—',days:0,worked:0,ot:0,lt:0,otDays:0,ltDays:0,absent:0,sunOT:0,wdOT:0};
+    const e=byEmp[l.empId];
+    if(l.status==='absent'){e.absent++;}
+    else{e.days++;e.worked=+(e.worked+l.worked).toFixed(2);e.ot=+(e.ot+l.ot).toFixed(2);e.lt=+(e.lt+(l.lt||0)).toFixed(2);if(l.ot>0){e.otDays++;if(l.isSun)e.sunOT=+(e.sunOT+l.ot).toFixed(2);else e.wdOT=+(e.wdOT+l.ot).toFixed(2);}if((l.lt||0)>0)e.ltDays++;}
+  });
+
+  Object.values(byEmp).forEach(r=>{r.netOT=+(r.ot-r.lt).toFixed(2);});
+  const rows=Object.values(byEmp).sort((a,b)=>b.netOT-a.netOT);
+  const totalOT=rows.reduce((s,r)=>s+r.ot,0);
+  const totalLT=rows.reduce((s,r)=>s+r.lt,0);
+  const totalNetOT=+(totalOT-totalLT).toFixed(2);
+  const totalWorked=rows.reduce((s,r)=>s+r.worked,0);
+
+  let html=`<div class="metrics" style="margin-bottom:16px">
+    <div class="metric"><div class="metric-label">Employees</div><div class="metric-value accent">${rows.length}</div></div>
+    <div class="metric"><div class="metric-label">Total days logged</div><div class="metric-value">${rows.reduce((s,r)=>s+r.days,0)}</div></div>
+    <div class="metric"><div class="metric-label">Total worked hrs</div><div class="metric-value green">${fmtH(totalWorked)}</div></div>
+    <div class="metric"><div class="metric-label">Gross OT</div><div class="metric-value red">${fmtH(totalOT)}</div></div>
+    <div class="metric"><div class="metric-label">Less time</div><div class="metric-value accent">${fmtH(totalLT)}</div></div>
+    <div class="metric"><div class="metric-label">Net OT</div><div class="metric-value ${totalNetOT>=0?'red':'amber'}">${totalNetOT>=0?'+':''}${fmtH(Math.abs(totalNetOT))}</div></div>
+  </div>`;
+
+  html+=`<div class="card"><div class="card-header"><span class="card-title">Employee-wise summary</span></div>`;
+  rows.forEach(r=>{
+    const net=r.netOT;
+    const netLabel=net>0?'Net OT: +'+fmtH(net):net<0?'Net Less: -'+fmtH(-net):'On time';
+    const netBadge=net>0?'badge-ot':net<0?'badge-lt':'badge-ok';
+    html+=`<div class="report-emp-card">
+      <div class="rec-header">
+        <div><div class="rec-name">${r.name}</div><div class="rec-id">${r.id} · ${r.dept}</div></div>
+        <span class="badge ${netBadge}">${netLabel}</span>
+      </div>
+      <div class="rec-stats">
+        <div class="rec-stat"><div class="rec-stat-v">${r.days}</div><div class="rec-stat-l">Days worked</div></div>
+        <div class="rec-stat"><div class="rec-stat-v">${fmtH(r.worked)}</div><div class="rec-stat-l">Worked hrs</div></div>
+        <div class="rec-stat"><div class="rec-stat-v" style="color:${r.ot>0?'var(--red)':'var(--text3)'}">${fmtH(r.ot)}</div><div class="rec-stat-l">Gross OT</div></div>
+        <div class="rec-stat"><div class="rec-stat-v" style="color:${r.lt>0?'var(--accent)':'var(--text3)'}">${fmtH(r.lt)}</div><div class="rec-stat-l">Less time</div></div>
+        <div class="rec-stat"><div class="rec-stat-v" style="color:${net>0?'var(--red)':net<0?'var(--amber)':'var(--text3)'}">${net>=0?'+':''}${fmtH(Math.abs(net))}</div><div class="rec-stat-l">Net OT</div></div>
+        <div class="rec-stat"><div class="rec-stat-v">${r.otDays}</div><div class="rec-stat-l">OT days</div></div>
+      </div>
+      ${(r.ot>0||r.lt>0)?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:12px;color:var(--text2);flex-wrap:wrap">
+        ${r.ot>0?`<span>Weekday OT: <strong style="color:var(--red);font-family:var(--mono)">${fmtH(r.wdOT)}</strong></span>
+        <span>Sunday OT: <strong style="color:var(--amber);font-family:var(--mono)">${fmtH(r.sunOT)}</strong></span>`:''}
+        ${r.lt>0?`<span>Less time: <strong style="color:var(--accent);font-family:var(--mono)">-${fmtH(r.lt)}</strong> (${r.ltDays} days)</span>`:''}
+        <span style="font-weight:600;color:${net>0?'var(--red)':net<0?'var(--amber)':'var(--green)'};font-family:var(--mono)">Net OT: ${net>=0?'+':''}${fmtH(Math.abs(net))}</span>
+        <span>Absent: <strong style="font-family:var(--mono)">${r.absent}</strong></span>
+      </div>`:''}
+    </div>`;
+  });
+  html+=`</div>`;
+
+  html+=`<div class="card"><div class="card-header"><span class="card-title">Day-wise detail</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Day</th><th>Employee</th><th>Dept</th><th>In</th><th>Out</th><th>Worked</th><th>Std</th><th>OT hrs</th><th>Less time</th><th>Status</th></tr></thead>
+      <tbody>`;
+  const sorted=[...data].sort((a,b)=>a.empName.localeCompare(b.empName)||a.date.localeCompare(b.date));
+  sorted.forEach(l=>{
+    const isSun=l.isSun;
+    html+=`<tr>
+      <td class="mono" style="font-size:12px">${l.date}</td>
+      <td>${isSun?`<span class="badge badge-sun">Sun</span>`:DAYS[new Date(l.date).getDay()].slice(0,3)}</td>
+      <td><strong style="font-weight:500">${l.empName}</strong></td>
+      <td style="color:var(--text2)">${l.dept||'—'}</td>
+      <td class="mono" style="font-size:12px">${l.inTime||'—'}</td>
+      <td class="mono" style="font-size:12px">${l.outTime||'—'}</td>
+      <td class="mono" style="font-size:12px">${fmtH(l.worked)}</td>
+      <td class="mono" style="font-size:12px;color:var(--text3)">${l.std?fmtH(l.std):'—'}</td>
+      <td>${l.ot>0?`<span class="ot-val">+${fmtH(l.ot)}</span>`:'<span class="ok-val">—</span>'}</td>
+      <td>${(l.lt||0)>0?`<span class="lt-val">-${fmtH(l.lt||0)}</span>`:'<span class="ok-val">—</span>'}</td>
+      <td>${l.status==='absent'?'<span class="badge badge-absent">Absent</span>':l.ot>0?'<span class="badge badge-ot">OT</span>':(l.lt||0)>0?'<span class="badge badge-lt">Less</span>':'<span class="badge badge-ok">Regular</span>'}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  out.innerHTML=html;
+}
+
+// ── Export ──
+function exportXLSX(){
+  const data=getFilteredLogs();
+  if(!data.length){toast('No data to export.','error');return;}
+
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Daily detail
+  const detail=[['Date','Day','Employee Name','Employee ID','Department','Check-in','Check-out','Status','Worked (hrs)','Standard (hrs)','OT (hrs)','Less Time (hrs)','Remarks']];
+  [...data].sort((a,b)=>a.empName.localeCompare(b.empName)||a.date.localeCompare(b.date)).forEach(l=>{
+    detail.push([l.date,DAYS[new Date(l.date).getDay()],l.empName,l.empId,l.dept||'—',l.inTime||'',l.outTime||'',l.status,l.worked,l.std||0,l.ot,l.lt||0,l.remark||'']);
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(detail);
+  ws1['!cols']=[{wch:12},{wch:12},{wch:20},{wch:12},{wch:16},{wch:10},{wch:10},{wch:10},{wch:13},{wch:13},{wch:10},{wch:14},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Daily Log');
+
+  // Sheet 2: Employee summary
+  const byEmp2={};
+  data.forEach(l=>{
+    if(!byEmp2[l.empId])byEmp2[l.empId]={name:l.empName,id:l.empId,dept:l.dept||'—',days:0,worked:0,ot:0,lt:0,otDays:0,ltDays:0,absent:0,sunOT:0,wdOT:0};
+    const e=byEmp2[l.empId];
+    if(l.status==='absent')e.absent++;
+    else{e.days++;e.worked=+(e.worked+l.worked).toFixed(2);e.ot=+(e.ot+l.ot).toFixed(2);e.lt=+(e.lt+(l.lt||0)).toFixed(2);if(l.ot>0){e.otDays++;if(l.isSun)e.sunOT=+(e.sunOT+l.ot).toFixed(2);else e.wdOT=+(e.wdOT+l.ot).toFixed(2);}if((l.lt||0)>0)e.ltDays++;}
+  });
+  const summary=[['Employee Name','Employee ID','Department','Days Worked','Total Worked (hrs)','Gross OT (hrs)','Weekday OT (hrs)','Sunday OT (hrs)','Less Time (hrs)','Net OT (hrs)','OT Days','Less Days','Absent Days']];
+  Object.values(byEmp2).sort((a,b)=>(b.ot-b.lt)-(a.ot-a.lt)).forEach(e=>{
+    const netOT=+(e.ot-e.lt).toFixed(2);
+    summary.push([e.name,e.id,e.dept,e.days,e.worked,e.ot,e.wdOT,e.sunOT,e.lt,netOT,e.otDays,e.ltDays,e.absent]);
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(summary);
+  ws2['!cols']=[{wch:20},{wch:12},{wch:16},{wch:14},{wch:16},{wch:14},{wch:16},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws2,'OT Summary');
+
+  // Sheet 3: Shift config
+  const cfgSheet=[['Setting','Mon–Sat','Sunday'],['Shift Start',cfg.wdStart,cfg.sunStart],['Shift End',cfg.wdEnd,cfg.sunEnd],['Standard Hours (hrs)',cfg.wdHrs,cfg.sunHrs],['','',''],['Exported on',new Date().toLocaleString(),'']];
+  const ws3=XLSX.utils.aoa_to_sheet(cfgSheet);
+  ws3['!cols']=[{wch:22},{wch:14},{wch:14}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Shift Config');
+
+  const fname='overtime_report_'+today()+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  toast('Exported: '+fname,'success');
+}
+
+// ── Theme ──
+function toggleTheme(){
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('ot_theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-icon-moon').style.display = isLight ? 'none' : '';
+  document.getElementById('theme-icon-sun').style.display = isLight ? '' : 'none';
+}
+(function(){
+  const saved = localStorage.getItem('ot_theme');
+  if(saved === 'light'){
+    document.documentElement.classList.add('light');
+    // icons will be updated after DOM loads
+    document.addEventListener('DOMContentLoaded', function(){
+      document.getElementById('theme-icon-moon').style.display = 'none';
+      document.getElementById('theme-icon-sun').style.display = '';
+    });
+  }
+})();
+
+// ── Toast ──
+function toast(msg,type=''){
+  const wrap=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className='toast'+(type?' '+type:'');
+  el.textContent=msg;
+  wrap.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),300);},3000);
+}
+
+</script>
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  setDoc,
+  deleteDoc,
+  doc,
+  onSnapshot
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDEyOgb0y2JJvyPBPl9MiftePXydC9d7Fo",
+  authDomain: "overitme.firebaseapp.com",
+  projectId: "overitme",
+  storageBucket: "overitme.firebasestorage.app",
+  messagingSenderId: "397343387894",
+  appId: "1:397343387894:web:f18d4967803cddc38b3cd7"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+window.db = db;
+window.auth = auth;
+window.fb = {
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  setDoc,
+  deleteDoc,
+  doc,
+  onSnapshot
+};
+
+// ── Override saveLog to handle photo as base64 in Firestore ──
+window.saveLog = async function(){
+
+  const date=document.getElementById('l-date').value;
+  const empId=document.getElementById('l-emp').value;
+  const status=document.getElementById('l-status').value;
+  const inT=document.getElementById('l-in').value;
+  const outT=document.getElementById('l-out').value;
+  const remark=document.getElementById('l-remark').value.trim();
+
+  if(!date || !empId){
+    toast('Date and employee are required.','error');
+    return;
+  }
+
+  if(status!=='absent' && (!inT || !outT)){
+    toast('Check-in and check-out times required.','error');
+    return;
+  }
+
+  const emp=emps.find(e=>e.id===empId);
+  if(!emp){
+    toast('Employee not found.','error');
+    return;
+  }
+
+  const {worked,ot,lt,std,isSun,dow} =
+    status==='absent'
+    ? {
+        worked:0,
+        ot:0,
+        lt:0,
+        std:0,
+        isSun:new Date(date).getDay()===0,
+        dow:new Date(date).getDay()
+      }
+    : calcOT(date,inT,outT,status);
+
+  const docId = `${date}_${empId}`;
+
+  // Convert photos to base64
+  async function toBase64(file){
+    return new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=e=>resolve(e.target.result); // already dataURL from preview
+      r.onerror=reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  let inPhotoB64 = null;
+  let outPhotoB64 = null;
+
+  if(selectedPhotoIn){
+    try{
+      toast('Processing in-time photo…');
+      inPhotoB64 = await toBase64(selectedPhotoIn);
+    }catch(err){
+      console.error('In-photo read failed',err);
+      toast('In-time photo read failed.','error');
+    }
+  }
+
+  if(selectedPhotoOut){
+    try{
+      toast('Processing out-time photo…');
+      outPhotoB64 = await toBase64(selectedPhotoOut);
+    }catch(err){
+      console.error('Out-photo read failed',err);
+      toast('Out-time photo read failed.','error');
+    }
+  }
+
+  const entry = {
+    date, empId, empName:emp.name, dept:emp.dept,
+    inTime:inT, outTime:outT, status, remark,
+    worked, ot, lt, std, isSun, dow,
+    ts:Date.now()
+  };
+  if(inPhotoB64) entry.inPhotoB64 = inPhotoB64;
+  if(outPhotoB64) entry.outPhotoB64 = outPhotoB64;
+
+  try{
+    await fb.setDoc(fb.doc(db,"logs",docId), entry);
+    toast('Entry saved for '+emp.name,'success');
+    clearLogForm();
+  }catch(err){
+    console.error(err);
+    toast('Firebase save failed','error');
+  }
+};
+
+// ── Anonymous Auth: sign in before any Firestore access ──
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    console.log('Signed in anonymously, uid:', user.uid);
+    init();
+  }
+});
+
+signInAnonymously(auth).catch((err) => {
+  console.error('Anonymous sign-in failed:', err);
+  toast('Login failed: ' + err.message, 'error');
+});
+</script>
+</body>
+</html>
